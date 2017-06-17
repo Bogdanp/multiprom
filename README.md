@@ -17,4 +17,4 @@ information see [LICENSE][license].
 
 [prom]: https://prometheus.io
 [license]: https://github.com/Bogdanp/multiprom/blob/master/LICENSE
-[examples]: https://github.com/Bogdanp/multiprom/blob/examples
+[examples]: https://github.com/Bogdanp/multiprom/tree/master/examples
