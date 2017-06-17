@@ -1,24 +1,26 @@
 class Metric:
+    """
+    Parameters:
+      name(str)
+      description(str)
+    """
+
+    kind = None
+
     def __init__(self, collector, name, description):
         self.collector = collector
-        self.name = name
-        self.description = description
+        self.name = name.encode("utf-8")
+        self.description = description.encode("utf-8") if description else None
         self.register()
-
-    @property
-    def kind(self):  # pragma: no cover
-        raise NotImplementedError
 
     def register(self):
         """Register this metric with its collector.
         """
-        self.collector.send(encode("reg", self.kind, self.name, self.description))
+        self.collector.send(encode(b"reg", self.kind, self.name, self.description))
 
 
 class Counter(Metric):
-    @property
-    def kind(self):
-        return "counter"
+    kind = b"counter"
 
     def inc(self, n=1, **labels):
         """Increment this counter by the given amount.
@@ -27,8 +29,7 @@ class Counter(Metric):
           n(int or float): This must be a positive amount.
         """
         assert n >= 0, "amounts must be positive"
-        message = encode("inc", self.name, str(n), **labels)
-        self.collector.send(message)
+        self.collector.send(encode(b"inc", self.name, str(n), **labels))
 
 
 def encode(operation, *args, **labels):
@@ -42,13 +43,14 @@ def encode(operation, *args, **labels):
     Returns:
       bytes
     """
-    sorted_labels = []
-    for name in sorted(labels):
-        sorted_labels.append(f'{name}="{labels[name]}"')
+    if labels:
+        args += (",".join(f'{name}="{labels[name]}"' for name in sorted(labels)),)
 
-    if sorted_labels:
-        args += (",".join(sorted_labels),)
+    message = operation
+    for arg in args:
+        message += b"\0"
+        if arg:
+            message += arg if isinstance(arg, bytes) else arg.encode("utf-8")
 
-    message = b"\r\n".join((arg or "").encode("utf-8") for arg in (operation, *args))
-    message_len = str(len(message)).encode("utf-8")
-    return b"$" + message_len + b"\r\n" + message + b"\r\n\r\n"
+    message_len = str(len(message)).encode("ascii")
+    return b"$" + message_len + b"\0" + message

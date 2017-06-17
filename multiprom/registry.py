@@ -59,7 +59,9 @@ class Registry:
         lines = []
         for metric in self.metrics.values():
             lines.extend(metric.serialize(timestamp))
-        return "\n".join(lines) + "\n"
+
+        response = "\n".join(lines) + "\n"
+        return response
 
     def reg(self, kind, metric, description=None):
         clazz = _entries_by_kind.get(kind)

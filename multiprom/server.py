@@ -7,7 +7,7 @@ from collections import defaultdict
 from .logging import get_logger
 from .registry import Registry
 
-DEFAULT_BLOCK_SIZE = 4096
+DEFAULT_BLOCK_SIZE = 16384
 
 
 class ServerCollector:
@@ -20,11 +20,7 @@ class ServerCollector:
         self.write_fd = None
         self.registry = None
 
-    def send(self, message, timeout=1):
-        if not self.ready.is_set():
-            self.logger.debug("Waiting for collector to become available...")
-            self.ready.wait(timeout=timeout)
-
+    def send(self, message):
         offset = os.write(self.write_fd, message)
         while offset < len(message):
             offset += os.write(self.write_fd, message[offset:])
@@ -55,8 +51,7 @@ class ServerCollector:
         while self.running:
             events = selector.select(timeout=1)
             for key, mask in events:
-                if mask & selectors.EVENT_READ:
-                    key.data(selector, key.fileobj)
+                key.data(selector, key.fileobj)
 
         self.logger.debug("Closing pipes...")
         selector.unregister(read_fd)
@@ -113,8 +108,7 @@ class ServerCollector:
             elif buff.startswith(b"?"):
                 data = self.registry.serialize()
                 self.buffers[fd] = buff[1:]
-                sock.sendall(b"$" + str(len(data)).encode("utf-8") + b"\r\n")
-                sock.sendall(data.encode("utf-8") + b"\r\n\r\n")
+                sock.sendall(b"$" + str(len(data)).encode("ascii") + b"\0" + data.encode("utf-8") + b"\0")
                 continue
 
             elif not buff.startswith(b"$"):
@@ -123,7 +117,7 @@ class ServerCollector:
                 return
 
             try:
-                marker = buff.index(b"\r\n")
+                marker = buff.index(b"\0")
                 message_len = int(buff[1:marker])
             except ValueError:
                 self.logger.warning("Malformed message from client with fd %r: %r", fd, buff)
@@ -133,14 +127,14 @@ class ServerCollector:
                 self.logger.debug("Waiting for more data from fd %r...", fd)
                 return
 
-            buff = buff[marker + 2:]
-            if len(buff) < message_len + 4:
+            buff = buff[marker + 1:]
+            if len(buff) < message_len:
                 return
 
             message = buff[:message_len]
-            self.buffers[fd] = buff[message_len + 4:]
+            self.buffers[fd] = buff[message_len:]
             self.on_handle_message(sock, message)
 
     def on_handle_message(self, socket, message):
-        operation, *args = [arg.decode("utf-8") for arg in message.split(b"\r\n")]
+        operation, *args = [arg.decode("utf-8") for arg in message.split(b"\0")]
         getattr(self.registry, operation)(*args)

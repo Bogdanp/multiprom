@@ -16,19 +16,16 @@ class ClientCollector:
         self.queue = Queue()
         self.running = False
 
-    def send(self, message, timeout=1):
+    def send(self, message):
         self.queue.put(message)
 
     def query(self, timeout=None):
-        if not self.ready.is_set():
-            self.ready.wait(timeout=timeout)
-
         self.sock.sendall(b"?")
         buff = b""
         while True:
             buff += self.sock.recv(DEFAULT_BLOCK_SIZE)
             try:
-                marker = buff.index(b"\r\n")
+                marker = buff.index(b"\0")
                 message_len = int(buff[1:marker])
             except ValueError:
                 self.logger.warning("Malformed message from server: %r", buff)
@@ -37,7 +34,7 @@ class ClientCollector:
                 self.logger.debug("Waiting for more data from server...")
                 continue
 
-            if len(buff[marker + 2:]) < message_len + 4:
+            if len(buff[marker + 2:]) < message_len + 2:
                 continue
 
             buff = buff[marker + 2:]
