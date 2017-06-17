@@ -34,10 +34,10 @@ class ClientCollector:
                 self.logger.debug("Waiting for more data from server...")
                 continue
 
-            if len(buff[marker + 2:]) < message_len + 2:
+            if len(buff[marker + 1:]) < message_len:
                 continue
 
-            buff = buff[marker + 2:]
+            buff = buff[marker + 1:]
             return buff[:message_len].decode("utf-8")
 
     def start(self):
