@@ -1,10 +1,6 @@
 # multiprom
 
-A multiprocess-friendly [Prometheus][prom] client for Python 3.6+.
-
-## Installation
-
-    pip install multiprom
+A multiprocess-friendly [Prometheus][prom] client for Python 3.6+.  Experimental.
 
 ## Examples
 
