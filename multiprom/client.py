@@ -26,7 +26,7 @@ class ClientCollector:
             buff += self.sock.recv(DEFAULT_BLOCK_SIZE)
             try:
                 marker = buff.index(b"\0")
-                message_len = int(buff[1:marker])
+                message_len = int(buff[:marker])
             except ValueError:
                 self.logger.warning("Malformed message from server: %r", buff)
                 return b""
@@ -66,7 +66,9 @@ class ClientCollector:
             except Empty:
                 pass
 
+        self.logger.debug("Closing client socket...")
         sock.close()
+        self.logger.debug("Collector client stopped.")
 
     def stop(self, block=True):
         self.logger.debug("Stopping collector client...")
@@ -75,4 +77,3 @@ class ClientCollector:
             self.queue.join()
 
         self.running = False
-        self.logger.debug("Collector client stopped.")
